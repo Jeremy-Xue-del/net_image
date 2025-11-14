@@ -28,7 +28,7 @@ abstract class ImageDownloader {
   /// [model] 下载模型
   /// [callback] 下载回调
   /// 返回任务ID
-  String download(DownloadModel model, DownloadCallback callback);
+  String download(DownloadModel model, [DownloadCallback? callback]);
 }
 
 /// 优化的网络图片组件
@@ -85,6 +85,13 @@ class _IMImageState extends State<IMImage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // 初始化下载模型
+    _downloadModel = DownloadModel(
+      url: widget.imageUrl,
+      path: widget.path,
+      progress: 0.0,
+      status: DownloadStatus.wait,
+    );
     _initializeImage();
   }
 
@@ -93,57 +100,64 @@ class _IMImageState extends State<IMImage> with WidgetsBindingObserver {
     // 应用生命周期变化时的处理
   }
 
-  Future<void> _initializeImage() async {
-    // 初始化下载模型
-    _downloadModel = DownloadModel(
-      url: widget.imageUrl,
-      path: widget.path,
-      progress: 0.0,
-      status: DownloadStatus.wait,
-    );
-
-    // 如果是资源类型，直接设置为完成状态
-    if (widget.type == ImageType.asset) {
-      setState(() {
-        _downloadModel.status = DownloadStatus.finish;
-      });
-      return;
+  void _initializeImage() async {
+    debugPrint('IMImage: 初始化图片，路径: ${widget.path}');
+    if (widget.type == ImageType.asset) return;
+    // 检查本地文件是否存在
+    final file = File(widget.path);
+    if (file.existsSync()) return;
+    debugPrint('IMImage: 本地文件不存在，需要下载');
+    // 文件不存在，需要下载
+    if (widget.imageUrl != null && widget.downloader != null) {
+      _downloadImage();
     }
+  }
 
+  Future<DownloadStatus> _initializeImageUI() async {
+    debugPrint('IMImageUI: 初始化图片，路径: ${widget.path}');
+    if (widget.type == ImageType.asset) {
+      debugPrint('IMImage: 资源图片，设置状态为完成');
+      _downloadModel.status = DownloadStatus.finish;
+      return DownloadStatus.finish;
+    }
     // 检查本地文件是否存在
     final file = File(widget.path);
     if (file.existsSync()) {
+      debugPrint('IMImage: 本地文件存在，设置状态为完成');
       // 文件存在，设置为完成状态
-      setState(() {
-        _downloadModel.status = DownloadStatus.finish;
-      });
+      _downloadModel.status = DownloadStatus.finish;
+      return DownloadStatus.finish;
     } else {
+      debugPrint('IMImage: 本地文件不存在，需要下载');
       // 文件不存在，需要下载
       if (widget.imageUrl != null && widget.downloader != null) {
-        _downloadImage();
+        debugPrint('IMImage: 开始下载图片');
+        return DownloadStatus.downing;
       } else {
+        debugPrint('IMImage: 没有提供下载器或URL，标记为失败');
         // 没有提供下载器或URL，标记为失败
-        setState(() {
-          _downloadModel.status = DownloadStatus.failed;
-        });
+        _downloadModel.status = DownloadStatus.failed;
+        return DownloadStatus.failed;
       }
     }
   }
 
   Future<void> _downloadImage() async {
-    setState(() {
-      _downloadModel.status = DownloadStatus.downing;
-    });
+    debugPrint('IMImage: 开始下载图片流程');
+    _downloadModel.status = DownloadStatus.downing;
+    debugPrint('IMImage: 设置状态为下载中');
 
     // 开始下载并获取任务ID
     _taskId = widget.downloader!.download(
       _downloadModel,
       _GlobalDownloadCallback(),
     );
+    debugPrint('IMImage: 下载任务已启动，任务ID: $_taskId');
 
     // 注册状态到管理器（使用弱引用）
     if (_taskId != null) {
       _ImageDownloadManager().registerState(_taskId!, this);
+      debugPrint('IMImage: 状态已注册到管理器');
     }
   }
 
@@ -152,7 +166,21 @@ class _IMImageState extends State<IMImage> with WidgetsBindingObserver {
     return SizedBox(
       width: widget.width,
       height: widget.height,
-      child: _buildContent(),
+      child: FutureBuilder<DownloadStatus>(
+        initialData: DownloadStatus.wait,
+        future: _initializeImageUI(),
+        builder: (context, snapshot) {
+          if (snapshot.data == DownloadStatus.wait) {
+            // 显示加载占位符
+            return widget.placeholder ?? CircularProgressIndicator();
+          } else if (snapshot.data == DownloadStatus.failed) {
+            return widget.errorWidget ?? Icon(Icons.error);
+          } else {
+            // 成功加载后显示内容
+            return _buildContent();
+          }
+        },
+      ),
     );
   }
 
@@ -160,6 +188,7 @@ class _IMImageState extends State<IMImage> with WidgetsBindingObserver {
     switch (_downloadModel.status) {
       case DownloadStatus.wait:
       case DownloadStatus.downing:
+      case DownloadStatus.paused:
         // 显示加载页面
         return _buildPlaceholder();
       case DownloadStatus.finish:
@@ -175,18 +204,24 @@ class _IMImageState extends State<IMImage> with WidgetsBindingObserver {
             },
           );
         } else {
-          return Image.file(
-            File(_downloadModel.path ?? widget.path),
-            width: widget.width,
-            height: widget.height,
-            fit: widget.fit,
-            errorBuilder: (context, error, stackTrace) {
-              return widget.errorWidget!;
-            },
-          );
+          final file = File(_downloadModel.path ?? widget.path);
+          // 检查文件是否存在
+          if (file.existsSync()) {
+            return Image.file(
+              file,
+              width: widget.width,
+              height: widget.height,
+              fit: widget.fit,
+              errorBuilder: (context, error, stackTrace) {
+                return widget.errorWidget!;
+              },
+            );
+          } else {
+            // 文件不存在，回退到占位符
+            return _buildPlaceholder();
+          }
         }
       case DownloadStatus.failed:
-      case DownloadStatus.paused:
         // 显示失败页面
         return widget.errorWidget!;
       default:
@@ -230,14 +265,18 @@ class _IMImageState extends State<IMImage> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // 不主动取消下载，让下载器自己管理
-    // 弱引用会自动处理对象回收，无需手动移除
+    if (_taskId != null) {
+      _ImageDownloadManager().unregisterState(_taskId!);
+    }
     super.dispose();
   }
 }
 
 /// 全局下载回调实现
 class _GlobalDownloadCallback implements DownloadCallback {
+
+  _GlobalDownloadCallback();
+
   @override
   void onProgress(String taskId, DownloadModel model) {
     _ImageDownloadManager().updateProgress(taskId, model);
@@ -266,9 +305,22 @@ class _ImageDownloadManager {
   // 存储任务ID与组件状态更新回调的映射（使用弱引用）
   final Map<String, WeakReference<_IMImageState>> _stateRefs = {};
 
+  // 储存任务ID与下载模型映射
+  final Map<String, WeakReference<DownloadCallback>> _callbackRefs = {};
+
   /// 注册组件状态更新回调
   void registerState(String taskId, _IMImageState state) {
     _stateRefs[taskId] = WeakReference(state);
+  }
+
+  /// 注册下载回调
+  void registerCallback(String taskId, DownloadCallback callback) {
+    _callbackRefs[taskId] = WeakReference(callback);
+  }
+
+  /// 取消注册
+  void unregisterState(String taskId) {
+    _stateRefs.remove(taskId);
   }
 
   /// 更新下载进度
@@ -278,27 +330,55 @@ class _ImageDownloadManager {
       final state = stateRef.target;
       // 添加mounted检查确保组件仍然挂载
       if (state != null && state.mounted) {
-        state.setState(() {
-          state._downloadModel = model;
-        });
+        state._downloadModel = model;
       }
+    }
+    // 调用回调方法
+    final callbackRef = _callbackRefs[taskId];
+    if (callbackRef != null) {
+      final callback = callbackRef.target;
+      callback?.onProgress(taskId, model);
     }
   }
 
-  /// 完成下载
   void completeDownload(String taskId, DownloadModel model) {
+    debugPrint('图片下载管理器: 收到完成回调，任务ID: $taskId');
     final stateRef = _stateRefs[taskId];
     if (stateRef != null) {
       final state = stateRef.target;
+      debugPrint('图片下载管理器: 找到状态引用，状态是否为空: ${state == null}');
       // 添加mounted检查确保组件仍然挂载
       if (state != null && state.mounted) {
+        debugPrint('图片下载管理器: 调用setState更新UI');
         state.setState(() {
           state._downloadModel = model;
         });
+        debugPrint('图片下载管理器: setState调用完成，新状态: ${model.status}');
+      } else {
+        debugPrint('图片下载管理器: 状态为空或未挂载，移除引用');
+        // 如果state为null，从映射中移除无效引用
+        _stateRefs.remove(taskId);
       }
-      // 下载完成后移除引用
-      _stateRefs.remove(taskId);
+
+      // 调用回调方法
+      final callbackRef = _callbackRefs[taskId];
+      if (callbackRef != null) {
+        final callback = callbackRef.target;
+        if (callback != null) {
+          debugPrint('图片下载管理器: 调用回调onComplete');
+          callback.onComplete(taskId, model);
+        } else {
+          debugPrint('图片下载管理器: 回调为空，移除引用');
+          // 如果callback为null，从映射中移除无效引用
+          _callbackRefs.remove(taskId);
+        }
+      }
+    } else {
+      debugPrint('图片下载管理器: 未找到任务ID $taskId 的状态引用');
     }
+    // 不管怎样都从映射中移除已完成的任务
+    _stateRefs.remove(taskId);
+    _callbackRefs.remove(taskId);
   }
 
   /// 下载错误
@@ -315,5 +395,14 @@ class _ImageDownloadManager {
       // 错误后移除引用
       _stateRefs.remove(taskId);
     }
+
+    // 调用回调方法
+    final callbackRef = _callbackRefs[taskId];
+    if (callbackRef != null) {
+      final callback = callbackRef.target;
+      callback?.onError(taskId, model);
+    }
+    // 错误后移除回调引用
+    _callbackRefs.remove(taskId);
   }
 }

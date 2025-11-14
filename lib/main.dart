@@ -77,19 +77,103 @@ class _ImageListPageState extends State<ImageListPage> {
       'blurHash': 'LGF5]+Yk^6#M@-5c,1J5@[or[Q6.',
       'thumbnailPath': '',
     },
+    {
+      'url': 'https://picsum.photos/400/300?random=7',
+      'title': '随机图片 7',
+      'blurHash': 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+      'thumbnailPath': '',
+    },
+    {
+      'url': 'https://picsum.photos/400/300?random=8',
+      'title': '随机图片 8',
+      'blurHash': 'LGF5]+Yk^6#M@-5c,1J5@[or[Q6.',
+      'thumbnailPath': '',
+    },
+    {
+      'url': 'https://picsum.photos/400/300?random=9',
+      'title': '随机图片 9',
+      'blurHash': 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+      'thumbnailPath': '',
+    },
+    {
+      'url': 'https://picsum.photos/400/300?random=10',
+      'title': '随机图片 10',
+      'blurHash': 'LGF5]+Yk^6#M@-5c,1J5@[or[Q6.',
+      'thumbnailPath': '',
+    },
+    {
+      'url': 'https://picsum.photos/400/300?random=11',
+      'title': '随机图片 11',
+      'blurHash': 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+      'thumbnailPath': '',
+    },
+    {
+      'url': 'https://picsum.photos/400/300?random=12',
+      'title': '随机图片 12',
+      'blurHash': 'LGF5]+Yk^6#M@-5c,1J5@[or[Q6.',
+      'thumbnailPath': '',
+    },
+    {
+      'url': 'https://picsum.photos/400/300?random=13',
+      'title': '随机图片 13',
+      'blurHash': 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+      'thumbnailPath': '',
+    },
+    {
+      'url': 'https://picsum.photos/400/300?random=14',
+      'title': '随机图片 14',
+      'blurHash': 'LGF5]+Yk^6#M@-5c,1J5@[or[Q6.',
+      'thumbnailPath': '',
+    },
+    {
+      'url': 'https://picsum.photos/400/300?random=15',
+      'title': '随机图片 15',
+      'blurHash': 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+      'thumbnailPath': '',
+    },
+    {
+      'url': 'https://picsum.photos/400/300?random=16',
+      'title': '随机图片 16',
+      'blurHash': 'LGF5]+Yk^6#M@-5c,1J5@[or[Q6.',
+      'thumbnailPath': '',
+    },
+    {
+      'url': 'https://picsum.photos/400/300?random=17',
+      'title': '随机图片 17',
+      'blurHash': 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+      'thumbnailPath': '',
+    },
+    {
+      'url': 'https://picsum.photos/400/300?random=18',
+      'title': '随机图片 18',
+      'blurHash': 'LGF5]+Yk^6#M@-5c,1J5@[or[Q6.',
+      'thumbnailPath': '',
+    },
+    {
+      'url': 'https://picsum.photos/400/300?random=19',
+      'title': '随机图片 19',
+      'blurHash': 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+      'thumbnailPath': '',
+    },
+    {
+      'url': 'https://picsum.photos/400/300?random=20',
+      'title': '随机图片 20',
+      'blurHash': 'LGF5]+Yk^6#M@-5c,1J5@[or[Q6.',
+      'thumbnailPath': '',
+    },
   ];
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    getData();
   }
 
-  void getData() async {
+  Future<List<ImageModel>> _loadData() async {
     final tempDir = await getTemporaryDirectory();
-    urlBasePath = '${tempDir.parent.path}/image_cache/image';
-    thumbnailPath = '${tempDir.parent.path}/image_cache/thumbnail';
+    final urlBasePath = '${tempDir.parent.path}/image_cache/image';
+    final thumbnailPath = '${tempDir.parent.path}/image_cache/thumbnail';
+
+    final List<ImageModel> data = [];
     for (Map<String, String> d in _imageData) {
       ImageModel m = ImageModel(
         url: d['url'],
@@ -101,11 +185,8 @@ class _ImageListPageState extends State<ImageListPage> {
       );
       data.add(m);
     }
-    if (mounted) {
-      setState(() {
-        data;
-      });
-    }
+    debugPrint('初始化数据完成');
+    return data;
   }
 
   @override
@@ -116,19 +197,33 @@ class _ImageListPageState extends State<ImageListPage> {
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(8.0),
-        itemCount: data.length,
-        itemBuilder: (context, index) {
-          final imageData = data[index];
-          return ImageListItem(
-            title: imageData.title!,
-            imageUrl: imageData.url!,
-            path: imageData.path!,
-            blurHash: imageData.blurHash!,
-            thumbnailPath: imageData.thumbnailPath!,
-            index: index,
-          );
+      body: FutureBuilder<List<ImageModel>>(
+        future: _loadData(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text('加载失败: ${snapshot.error}'));
+          } else if (snapshot.hasData) {
+            final data = snapshot.data!;
+            return ListView.builder(
+              padding: const EdgeInsets.all(8.0),
+              itemCount: data.length,
+              itemBuilder: (context, index) {
+                final imageData = data[index];
+                return ImageListItem(
+                  title: imageData.title!,
+                  imageUrl: imageData.url!,
+                  path: imageData.path!,
+                  blurHash: imageData.blurHash!,
+                  thumbnailPath: imageData.thumbnailPath!,
+                  index: index,
+                );
+              },
+            );
+          } else {
+            return const Center(child: Text('暂无数据'));
+          }
         },
       ),
     );
