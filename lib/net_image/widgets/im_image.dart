@@ -30,7 +30,7 @@ class IMImage extends StatefulWidget {
     this.downloader,
     this.thumbnailHash, // 缩略图hash
     this.thumbnailPath, // 缩略图本地地址
-    this.animationDuration = const Duration(milliseconds: 1000),
+    this.animationDuration = const Duration(milliseconds: 500),
   }) : type = ImageType.normal;
 
   const IMImage.asset({
@@ -46,7 +46,7 @@ class IMImage extends StatefulWidget {
        errorWidget = null,
        thumbnailHash = null,
        thumbnailPath = null,
-       animationDuration = const Duration(milliseconds: 1000);
+       animationDuration = const Duration(milliseconds: 500);
 
   final String? imageUrl;
   final String path;
@@ -70,6 +70,7 @@ class IMImage extends StatefulWidget {
 class _IMImageState extends State<IMImage> with WidgetsBindingObserver {
   late DownloadModel _downloadModel;
   late DownloadImageProvider _imageProvider;
+  bool _isImageReady = false;
 
   @override
   void initState() {
@@ -95,6 +96,10 @@ class _IMImageState extends State<IMImage> with WidgetsBindingObserver {
 
   void _handleDownloadUpdate(DownloadModel model) {
     _downloadModel = model;
+    // 检查图像是否已准备好显示
+    if (!_isImageReady && model.status == DownloadStatus.finish) {
+      _isImageReady = true;
+    }
   }
 
   @override
@@ -158,15 +163,34 @@ class _IMImageState extends State<IMImage> with WidgetsBindingObserver {
     int? frame,
     bool wasSynchronouslyLoaded,
   ) {
-    // 图像已经加载完成，添加淡入动画
-    if (frame != null) {
-      return FadeWidget(
-        duration: widget.animationDuration,
-        direction: AnimationDirection.forward,
-        child: child,
-      );
-    }
+    if(frame != null){
+      // 如果图像是刚刚加载完成的，执行过渡动画
+      if (_isImageReady) {
+        return Stack(
+          fit: StackFit.passthrough,
+          alignment: Alignment.center,
+          children: [
+            // 占位符淡出
+            FadeWidget(
+              duration: widget.animationDuration,
+              curve: Curves.easeOut,
+              direction: AnimationDirection.reverse,
+              child: _buildPlaceholder(),
+            ),
+            // 图像淡入
+            FadeWidget(
+              duration: widget.animationDuration,
+              curve: Curves.easeIn,
+              direction: AnimationDirection.forward,
+              child: child,
+            ),
+          ],
+        );
+      }
 
+      // 否则直接显示图像
+      return child;
+    }
     // 图像尚未加载完成，显示占位符
     return _buildPlaceholder();
   }
