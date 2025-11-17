@@ -144,7 +144,7 @@ class ThumbnailStorageManager {
       final fileName = ImageUtils.getSafeFileName(blurHash);
       final filePath = '$thumbDir/$fileName';
       final file = File(filePath);
-
+      debugPrint("缩略图位置:${file.path}");
       if (await file.exists()) {
         return file;
       }

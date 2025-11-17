@@ -170,18 +170,18 @@ class _ImageListPageState extends State<ImageListPage> {
 
   Future<List<ImageModel>> _loadData() async {
     final tempDir = await getTemporaryDirectory();
-    final urlBasePath = '${tempDir.parent.path}/image_cache/image';
-    final thumbnailPath = '${tempDir.parent.path}/image_cache/thumbnail';
+    final urlBasePath = '${tempDir.parent.path}/net_image/images';
+    final thumbnailPath = '${tempDir.parent.path}/net_image/thumbnails';
 
     final List<ImageModel> data = [];
     for (Map<String, String> d in _imageData) {
       ImageModel m = ImageModel(
         url: d['url'],
-        path: urlBasePath + ImageUtils.getSafeFileName(d['url']!),
+        path: "$urlBasePath/${ImageUtils.getSafeFileName(d['url']!)}",
         title: d['title']!,
         blurHash: d['blurHash'],
         thumbnailPath:
-            thumbnailPath + ImageUtils.getSafeFileName(d['blurHash']!),
+            "$thumbnailPath/${ImageUtils.getSafeFileName(d['blurHash']!)}",
       );
       data.add(m);
     }

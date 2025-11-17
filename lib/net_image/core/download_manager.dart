@@ -6,7 +6,7 @@ import 'package:http/http.dart';
 
 import '../model/download_model.dart';
 import '../utils/image_utils.dart';
-import '../widgets/im_image.dart';
+import 'image_manager.dart';
 
 /// 图片下载管理器实现
 class DefaultImageDownloader implements ImageDownloader {
@@ -152,7 +152,7 @@ class DefaultImageDownloader implements ImageDownloader {
   Future<String> _getDefaultFilePath(String url) async {
     final safeFileName = ImageUtils.getSafeFileName(url);
     final baseDir = await getApplicationDocumentsDirectory();
-    final dirPath = '${baseDir.parent.path}/net_image/image';
+    final dirPath = '${baseDir.parent.path}/net_image/images';
     await Directory(dirPath).create(recursive: true);
     return '$dirPath/$safeFileName';
   }
