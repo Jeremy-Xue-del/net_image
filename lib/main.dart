@@ -36,15 +36,17 @@ class _ImageListPageState extends State<ImageListPage> {
 
   late String thumbnailPath;
 
+  late Future<List<ImageModel>> _dataFuture;
+
   List<ImageModel> data = [];
 
   // 示例图片URL列表
   final List<Map<String, String>> _imageData = [
     {
-      'url': 'https://picsum.photos/400/300?random=1',
+      'url': 'https://pic2.zhimg.com/v2-4edf83ea78bfbc41bf2856306637337b_r.jpg',
       'path': '',
       'title': '随机图片 1',
-      'blurHash': 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+      'blurHash': 'LZ7:hTR7eoRmpMoHkCWWxwbYWYWB',
       'thumbnailPath': '',
     },
     {
@@ -166,6 +168,7 @@ class _ImageListPageState extends State<ImageListPage> {
   @override
   void initState() {
     super.initState();
+    _dataFuture = _loadData();
   }
 
   Future<List<ImageModel>> _loadData() async {
@@ -185,7 +188,6 @@ class _ImageListPageState extends State<ImageListPage> {
       );
       data.add(m);
     }
-    debugPrint('初始化数据完成');
     return data;
   }
 
@@ -198,7 +200,7 @@ class _ImageListPageState extends State<ImageListPage> {
         foregroundColor: Colors.white,
       ),
       body: FutureBuilder<List<ImageModel>>(
-        future: _loadData(),
+        future: _dataFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -236,7 +238,7 @@ class ImageListItem extends StatefulWidget {
   final int index;
   final String path;
   final String blurHash;
-  final String thumbnailPath;
+  final String? thumbnailPath;
 
   const ImageListItem({
     super.key,
@@ -245,7 +247,7 @@ class ImageListItem extends StatefulWidget {
     required this.index,
     required this.path,
     required this.blurHash,
-    required this.thumbnailPath,
+    this.thumbnailPath,
   });
 
   @override

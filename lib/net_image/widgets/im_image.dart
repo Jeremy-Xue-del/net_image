@@ -1,8 +1,5 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
-
-import '../../over_animation/fade_widget.dart';
 import '../core/image_manager.dart';
 import '../core/image_provider.dart';
 import '../model/download_model.dart';
@@ -30,7 +27,7 @@ class IMImage extends StatefulWidget {
     this.downloader,
     this.thumbnailHash, // 缩略图hash
     this.thumbnailPath, // 缩略图本地地址
-    this.animationDuration = const Duration(milliseconds: 500),
+    this.animationDuration = const Duration(milliseconds: 5000),
   }) : type = ImageType.normal;
 
   const IMImage.asset({
@@ -70,7 +67,7 @@ class IMImage extends StatefulWidget {
 class _IMImageState extends State<IMImage> with WidgetsBindingObserver {
   late DownloadModel _downloadModel;
   late DownloadImageProvider _imageProvider;
-  bool _isImageReady = false;
+  bool _hasTransitioned = false;
 
   @override
   void initState() {
@@ -96,10 +93,6 @@ class _IMImageState extends State<IMImage> with WidgetsBindingObserver {
 
   void _handleDownloadUpdate(DownloadModel model) {
     _downloadModel = model;
-    // 检查图像是否已准备好显示
-    if (!_isImageReady && model.status == DownloadStatus.finish) {
-      _isImageReady = true;
-    }
   }
 
   @override
@@ -126,7 +119,7 @@ class _IMImageState extends State<IMImage> with WidgetsBindingObserver {
         height: widget.height,
         fit: widget.fit,
         frameBuilder: _frameBuilder,
-        loadingBuilder: _loadingBuilder,
+        // loadingBuilder: _loadingBuilder,
         errorBuilder: _errorBuilder,
       ),
     );
@@ -158,41 +151,30 @@ class _IMImageState extends State<IMImage> with WidgetsBindingObserver {
   }
 
   Widget _frameBuilder(
-    BuildContext context,
-    Widget child,
-    int? frame,
-    bool wasSynchronouslyLoaded,
-  ) {
-    if(frame != null){
-      // 如果图像是刚刚加载完成的，执行过渡动画
-      if (_isImageReady) {
-        return Stack(
-          fit: StackFit.passthrough,
-          alignment: Alignment.center,
-          children: [
-            // 占位符淡出
-            FadeWidget(
-              duration: widget.animationDuration,
-              curve: Curves.easeOut,
-              direction: AnimationDirection.reverse,
-              child: _buildPlaceholder(),
-            ),
-            // 图像淡入
-            FadeWidget(
-              duration: widget.animationDuration,
-              curve: Curves.easeIn,
-              direction: AnimationDirection.forward,
-              child: child,
-            ),
-          ],
-        );
-      }
+      BuildContext context,
+      Widget child,
+      int? frame,
+      bool wasSynchronouslyLoaded,
+      ) {
+    final showImage = frame != null;
 
-      // 否则直接显示图像
-      return child;
-    }
-    // 图像尚未加载完成，显示占位符
-    return _buildPlaceholder();
+    return Stack(
+      fit: StackFit.passthrough,
+      children: [
+        // 永远显示占位符作为底
+        Positioned.fill(
+          child: _buildPlaceholder(),
+        ),
+
+        // 上层是图片，初次加载时淡入
+        AnimatedOpacity(
+          opacity: showImage ? 1.0 : 0.0,
+          duration: widget.animationDuration,
+          curve: Curves.easeOut,
+          child: child,
+        ),
+      ],
+    );
   }
 
   Widget _errorBuilder(

@@ -47,7 +47,7 @@ class DownloadImageProvider extends ImageProvider<DownloadImageProvider> {
 
     // 检查文件是否已经存在
     if (await file.exists()) {
-      // 文件存在，正常加载
+      // TODO 处理文件过大问题
       final bytes = await file.readAsBytes();
       final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
       return decode(buffer);
