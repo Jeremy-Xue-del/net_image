@@ -88,7 +88,7 @@ class _ImagePlaceholderState extends State<ImagePlaceholder> {
     try {
       final storageManager = ThumbnailStorageManager();
       final thumbnailFile = await storageManager.getThumbnailByPath(
-        widget.thumbnailPath!,
+        localPath: widget.thumbnailPath,
       );
 
       if (thumbnailFile != null) {

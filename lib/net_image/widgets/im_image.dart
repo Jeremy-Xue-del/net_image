@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import '../core/image_manager.dart';
 import '../core/image_provider.dart';
@@ -27,7 +26,8 @@ class IMImage extends StatefulWidget {
     this.downloader,
     this.thumbnailHash, // 缩略图hash
     this.thumbnailPath, // 缩略图本地地址
-    this.animationDuration = const Duration(milliseconds: 5000),
+    this.animationDuration = const Duration(milliseconds: 500),
+    this.radius,
   }) : type = ImageType.normal;
 
   const IMImage.asset({
@@ -36,29 +36,54 @@ class IMImage extends StatefulWidget {
     this.width,
     this.height,
     this.fit = BoxFit.cover,
+    this.placeholder,
+    this.errorWidget = const Icon(Icons.error),
+    this.thumbnailHash,
+    this.thumbnailPath,
+    this.animationDuration = const Duration(milliseconds: 500),
+    this.radius,
   }) : type = ImageType.asset,
        downloader = null,
-       imageUrl = null,
-       placeholder = null,
-       errorWidget = null,
-       thumbnailHash = null,
-       thumbnailPath = null,
-       animationDuration = const Duration(milliseconds: 500);
+       imageUrl = null;
 
+  /// 图片地址
   final String? imageUrl;
+
+  /// 图片路径
   final String path;
+
+  /// 图片宽度
   final double? width;
+
+  /// 图片高度
   final double? height;
+
+  /// 缩放模式
   final BoxFit? fit;
+
+  /// 占位符
   final Widget? placeholder;
+
+  /// 错误占位符
   final Widget? errorWidget;
+
+  /// 图片类型
   final ImageType type;
+
+  /// 下载器
   final ImageDownloader? downloader;
+
+  /// 缩略图hash
   final String? thumbnailHash;
+
+  /// 缩略图本地地址
   final String? thumbnailPath;
 
   /// 动画时长
   final Duration animationDuration;
+
+  /// 圆角
+  final BorderRadiusGeometry? radius;
 
   @override
   createState() => _IMImageState();
@@ -67,7 +92,6 @@ class IMImage extends StatefulWidget {
 class _IMImageState extends State<IMImage> with WidgetsBindingObserver {
   late DownloadModel _downloadModel;
   late DownloadImageProvider _imageProvider;
-  bool _hasTransitioned = false;
 
   @override
   void initState() {
@@ -82,13 +106,15 @@ class _IMImageState extends State<IMImage> with WidgetsBindingObserver {
       status: DownloadStatus.wait,
     );
 
-    _imageProvider = DownloadImageProvider(
-      filePath: widget.path,
-      imageUrl: widget.imageUrl,
-      downloader: widget.downloader,
-      downloadModel: _downloadModel,
-      onDownloadUpdate: _handleDownloadUpdate,
-    );
+    if (widget.type == ImageType.normal) {
+      _imageProvider = DownloadImageProvider(
+        filePath: widget.path,
+        imageUrl: widget.imageUrl,
+        downloader: widget.downloader,
+        downloadModel: _downloadModel,
+        onDownloadUpdate: _handleDownloadUpdate,
+      );
+    }
   }
 
   void _handleDownloadUpdate(DownloadModel model) {
@@ -97,74 +123,46 @@ class _IMImageState extends State<IMImage> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    Widget child;
     if (widget.type == ImageType.asset) {
-      return SizedBox(
+      child = Image.asset(
+        widget.path,
         width: widget.width,
         height: widget.height,
-        child: Image.asset(
-          widget.path,
-          width: widget.width,
-          height: widget.height,
-          fit: widget.fit,
-        ),
+        fit: widget.fit,
+        frameBuilder: _frameBuilder,
+        errorBuilder: _errorBuilder,
       );
-    }
-
-    return SizedBox(
-      width: widget.width,
-      height: widget.height,
-      child: Image(
+    } else {
+      child = Image(
         image: _imageProvider,
         width: widget.width,
         height: widget.height,
         fit: widget.fit,
         frameBuilder: _frameBuilder,
-        // loadingBuilder: _loadingBuilder,
         errorBuilder: _errorBuilder,
-      ),
-    );
-  }
-
-  Widget _loadingBuilder(
-    BuildContext context,
-    Widget child,
-    ImageChunkEvent? loadingProgress,
-  ) {
-    // 检查文件是否存在
-    final file = File(widget.path);
-    if (file.existsSync()) {
-      // 文件存在，直接显示图像
-      return child;
+      );
     }
 
-    // 文件不存在，根据下载状态显示不同内容
-    switch (_downloadModel.status) {
-      case DownloadStatus.wait:
-      case DownloadStatus.downing:
-      case DownloadStatus.paused:
-        return _buildPlaceholder();
-      case DownloadStatus.failed:
-        return widget.errorWidget ?? const Icon(Icons.error);
-      default:
-        return _buildPlaceholder();
+    if (widget.radius != null) {
+      child = ClipRRect(borderRadius: widget.radius!, child: child);
     }
+    return SizedBox(width: widget.width, height: widget.height, child: child);
   }
 
   Widget _frameBuilder(
-      BuildContext context,
-      Widget child,
-      int? frame,
-      bool wasSynchronouslyLoaded,
-      ) {
+    BuildContext context,
+    Widget child,
+    int? frame,
+    bool wasSynchronouslyLoaded,
+  ) {
     final showImage = frame != null;
 
     return Stack(
       fit: StackFit.passthrough,
       children: [
         // 永远显示占位符作为底
-        Positioned.fill(
-          child: _buildPlaceholder(),
-        ),
+        Positioned.fill(child: _buildPlaceholder()),
 
         // 上层是图片，初次加载时淡入
         AnimatedOpacity(

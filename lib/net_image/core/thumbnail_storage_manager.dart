@@ -7,8 +7,11 @@ import '../../blur_hash/blur_hash.dart';
 
 /// 缩略图存储管理器单例
 class ThumbnailStorageManager {
-  static final ThumbnailStorageManager _instance = ThumbnailStorageManager._internal();
+  static final ThumbnailStorageManager _instance =
+      ThumbnailStorageManager._internal();
+
   factory ThumbnailStorageManager() => _instance;
+
   ThumbnailStorageManager._internal();
 
   String? _thumbnailDirectory;
@@ -50,7 +53,8 @@ class ThumbnailStorageManager {
   /// 通过路径获取缩略图文件
   /// [localPath] 本地缩略图文件路径
   /// 如果文件存在直接返回，否则返回null
-  Future<File?> getThumbnailByPath(String localPath) async {
+  Future<File?> getThumbnailByPath({String? localPath}) async {
+    if (localPath == null) return null;
     try {
       final file = File(localPath);
       if (await file.exists()) {
